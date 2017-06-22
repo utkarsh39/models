@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
+import experiment
 from datasets import dataset_factory
 from deployment import model_deploy
 from nets import nets_factory
@@ -220,14 +220,11 @@ FLAGS = tf.app.flags.FLAGS
 
 def _configure_learning_rate(num_samples_per_epoch, global_step):
   """Configures the learning rate.
-
   Args:
     num_samples_per_epoch: The number of samples in each epoch of training.
     global_step: The global_step tensor.
-
   Returns:
     A `Tensor` representing the learning rate.
-
   Raises:
     ValueError: if
   """
@@ -260,13 +257,10 @@ def _configure_learning_rate(num_samples_per_epoch, global_step):
 
 def _configure_optimizer(learning_rate):
   """Configures the optimizer used for training.
-
   Args:
     learning_rate: A scalar or `Tensor` learning rate.
-
   Returns:
     An instance of an optimizer.
-
   Raises:
     ValueError: if FLAGS.optimizer is not recognized.
   """
@@ -311,10 +305,8 @@ def _configure_optimizer(learning_rate):
 
 def _get_init_fn():
   """Returns a function run by the chief worker to warm-start the training.
-
   Note that the init_fn is only run when initializing the model during the very
   first global step.
-
   Returns:
     An init function run by the supervisor.
   """
@@ -360,7 +352,6 @@ def _get_init_fn():
 
 def _get_variables_to_train():
   """Returns a list of variables to train.
-
   Returns:
     A list of variables to train by the optimizer.
   """
@@ -444,7 +435,7 @@ def main(_):
           labels, dataset.num_classes - FLAGS.labels_offset)
       batch_queue = slim.prefetch_queue.prefetch_queue(
           [images, labels], capacity=2 * deploy_config.num_clones)
-
+      pd = images
     ####################
     # Define the model #
     ####################
@@ -554,7 +545,7 @@ def main(_):
     ###########################
     # Kicks off the training. #
     ###########################
-    slim.learning.train(
+    l, images = slim.learning.train(pd,
         train_tensor,
         logdir=FLAGS.train_dir,
         master=FLAGS.master,
@@ -566,7 +557,7 @@ def main(_):
         save_summaries_secs=FLAGS.save_summaries_secs,
         save_interval_secs=FLAGS.save_interval_secs,
         sync_optimizer=optimizer if FLAGS.sync_replicas else None)
-
+    experiment.test(images, FLAGS.batch_size)
 
 if __name__ == '__main__':
   tf.app.run()
